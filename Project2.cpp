@@ -99,8 +99,10 @@ private:
    Client clientsList[MAX_MEMBERS];
    Account acctsList[MAX_MEMBERS];
    User usersList[MAX_MEMBERS];
+   
 
 public:
+   User staffList[MAX_MEMBERS];
    bool check_isAdmin(string username, string pswd);
    bool check_isStaff(string username, string pswd);
    bool empty_line(string line);
@@ -117,6 +119,7 @@ public:
    void load_clientList();
    void load_acctsList();
    void load_usersList();
+   void extract_staffList();
    void delete_from_usersList(string usernameIn);
    void update_user_pswd(string usernameIn, string pswdIn);
    void add_to_usersList(User userIn);
@@ -253,6 +256,18 @@ bool BankDataFiles:: check_isAdmin(string username, string pswd)  {
 
 }
 
+//Takes all of the staff members and creates a list for easy printing elsewhere.
+void BankDataFiles:: extract_staffList() {
+   int i;
+   
+   for (i = 0; i < MAX_MEMBERS; i++) {
+      if (usersList[i].role == "System Administrator" || usersList[i].role == "Staff") {
+         staffList[i].username = usersList[i].username;
+         staffList[i].password = usersList[i].password;
+         staffList[i].role = usersList[i].role;
+      }
+   }
+}
 
 bool BankDataFiles:: check_isStaff(string username, string pswd)  {
 
@@ -695,16 +710,132 @@ void Branch_staff:: staff_options() {
 
 //Diplays the options within the account management portal.
 void Branch_staff:: acct_management()  {
+   system.P();
 
+   int optionIn;
+   int subMenuNum;
+   int depositAmount;
+   int withdrawalAmount;
+   string accountNum;
+   string clientName;
+   bool clientExists;
+   bool accountExists;
 
+   cout << "\n\t\t=========================================================" << endl;
+   cout << "\t\t| Teller Terminal System - Client and Account Management |" << endl;
+   cout << "\t\t=========================================================" << endl;
+   cout << "1) Add a client" << endl;
+   cout << "2) Add an account" << endl;
+   cout << "3) Edit client information" << endl;
+   cout << "4) Manage an account" << endl;
+   cout << "5) Save client and account information" << endl;
+   cout << "6) Exit" << endl;
+   cout << "Please choose an option: ";
+   cin >> optionIn;
+   
+   switch (optionIn) {
+      case 1:
+         cout << "A new client will be added: " << endl;
+         cout << "Client name: ";
+         cin >> client.name;
+         cout << "Address: ";
+         cin >> client.address;
+         cout << "Phone Number: ";
+         cin >> client.phoneNum;
+         cout << "Social Security Number: ";
+         cin >> client.ssn;
+         cout << "Employer: ";
+         cin >> client.employer;
+         cout << "Annual income: ";
+         cin >> client.annual_income;
+         
+         bank_files.add_to_clientsList(client);
+         break;
+      case 2:
+         cout << "Choose a client: ";
+         cin >> clientName;
+         clientExists = bank_files.check_clientName_database(clientName);
+         if (clientExists) {
+            cout << "A new account will be created for " << clientName << "..." << endl;
+            cout << "Account number: ";
+            cin >> acct.acctNumber;
+            acct.acctName = clientName;
+            cout << "Account type: ";
+            cin >> acct.acct_type;
+            cout << "Balance: ";
+            cin >> acct.balance;
+            
+            bank_files.add_to_acctsList(acct);   
+         }
+         else {
+            cout << "Error - The client is not in the system!" << endl;
+         }
+         break;
+      case 3:
+         cout << "Choose a client: ";
+         cin >> clientName;
+         clientExists = bank_files.check_clientName_database(clientName);
+         if (clientExists) {
+            cout << "Display " << clientName << "'s information" << endl;
+            bank_files.print_clientInfo(clientName);
+            cout << "Client " << clientName << "'s infomation will be updated." << endl;
+            cout << "1) Confirm" << endl;
+            cout << "2) Cancel" << endl;
+            cout << "Please choose an option: ";
+            cin >> subMenuNum;
+            if (subMenuNum == 1) {
+               bank_files.update_client(clientName);
+            }
+         }
+         else {
+            cout << "Error - The client is not in the system!" << endl;
+         }
+         break;
+      case 4:
+         cout << "Which account will be managed?";
+         cin >> accountNum;
+         accountExists = bank_files.check_acctNumber(accountNum);
+         if (accountExists) {
+            cout << "Manage account " << accountNum << "..." << endl;
+            cout << "1) Deposit" << endl;
+            cout << "2) Withdraw" << endl;
+            cout << "3) Cancel" << endl;
+            cout << "Please choose an option: ";
+            cin >> subMenuNum;
+            if (subMenuNum == 1) {
+               cout << "Deposit amount: ";
+               cin >> depositAmount;
+               bank_files.make_deposit(accountNum, depositAmount);
+            }
+            else if (subMenuNum == 2) {
+               cout << "Withdraw amount: ";
+               cin >> withdrawalAmount;
+               bank_files.make_withdrawal(accountNum, withdrawalAmount);
+            }
+         }
+         else {
+            cout << "Error - The account is not in the system!" << endl;
+         }
+         break;
+      case 5:
+         bank_files.write_file_clientsList();
+         bank_files.write_file_acctsList();
+         cout << "Client information has been saved in the client-info file; account information has been saved in the account-info file!";
+         break;
+      default:
+         break;
+   }
+
+   system.S();
 
 }
 
 //Allows the branch or admin users to change their passwords.
 void Branch_staff:: change_pswd()   {
-
-
-
+   string passIn;
+   cout << "What would you like to change the password to? ";
+   cin >> passIn;
+   set_password(passIn);
 }
 
 
@@ -845,13 +976,34 @@ void Admin:: add_user() {
    
    //Delets a current user from the teller terminal system.
 void Admin:: delete_user()   {
+   string userIn;
+   bool userExists;
+   
+   cout << "Please enter a username to delete: ";
+   cin >> userIn;
+   userExists = bank_files.check_if_userExists(userIn);
+   if (userExists) {
+      bank_files.delete_from_usersList(userIn);
+      cout << "User " << userIn << " successfully removed from database." << endl;
+      cout << "\nPress any key to continue...";
+      cin.ignore().get(); 
+   }
+   else {
+      cout << "Provided user does not exist!  Returning to main menu. " << endl;
+      admin_options();
+   }
    
    
 }
    
    //Prints the currents staff/user list.
 void Admin:: print_staffList()  {
+   int i = 0;
    
+   cout << "Printing staff list..." << endl;
+   for (i = 0; i < MAX_MEMBERS; i++) {
+      cout << bank_files.staffList[i].username << " " << bank_files.staffList[i].password << " " << bank_files.staffList[i].role << endl;
+   }
    
    
 }
